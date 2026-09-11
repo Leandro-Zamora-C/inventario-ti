@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario TI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Cliente de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Encabezado -->
+        <header class="flex justify-between items-center mb-8 bg-slate-900 p-4 rounded-xl border border-slate-800">
+            <h1 class="text-xl font-bold flex items-center gap-2">💻 Gestión de Inventario TI</h1>
+            <span class="text-xs bg-blue-900 text-blue-300 px-3 py-1 rounded-full border border-blue-700">v3.5 Enterprise</span>
+        </header>
+
+        <!-- Tarjetas de Resumen -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-slate-400">TOTAL REGISTRADOS</p>
+                    <h2 id="total-registrados" class="text-3xl font-bold">0</h2>
+                </div>
+                <div class="bg-blue-950 p-3 rounded-lg text-blue-400 border border-blue-800">📦</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-slate-400">LIBRES EN ALMACÉN</p>
+                    <h2 id="total-libres" class="text-3xl font-bold">0</h2>
+                </div>
+                <div class="bg-emerald-950 p-3 rounded-lg text-emerald-400 border border-emerald-800">🏢</div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-slate-400">ASIGNADOS A PERSONAL</p>
+                    <h2 id="total-asignados" class="text-3xl font-bold">0</h2>
+                </div>
+                <div class="bg-amber-950 p-3 rounded-lg text-amber-400 border border-amber-800">👤</div>
+            </div>
+        </div>
+
+        <!-- Barra de Acciones -->
+        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap gap-3 items-center justify-between mb-6">
+            <input type="text" id="buscador" placeholder="Buscar por modelo, colaborador..." class="bg-slate-950 border border-slate-800 px-4 py-2 rounded-lg text-sm w-full md:w-72 focus:outline-none focus:border-blue-600">
+            
+            <div class="flex flex-wrap gap-2">
+                <button onclick="abrirModal('modal-categoria')" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg border border-slate-700 font-medium">➕ Categoría</button>
+                <button onclick="abrirModal('modal-personal')" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg border border-slate-700 font-medium">➕ Personal</button>
+                <button onclick="abrirModal('modal-modelo')" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg border border-slate-700 font-medium">➕ Modelo</button>
+                <button onclick="abrirModal('modal-equipo')" class="bg-blue-600 hover:bg-blue-500 text-xs px-4 py-2 rounded-lg font-medium text-white shadow-lg">＋ Registrar Equipo</button>
+                <button onclick="verListas()" id="btn-listas" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-2 rounded-lg border border-slate-700 font-medium text-red-400">🗑️ Listas (Papelera)</button>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-slate-950 text-slate-400 border-b border-slate-800 text-xs uppercase">
+                    <tr>
+                        <th class="p-4">N°</th>
+                        <th class="p-4">Modelo / Equipo</th>
+                        <th class="p-4">Estado</th>
+                        <th class="p-4">Asignado a</th>
+                        <th class="p-4">Ubicación</th>
+                        <th class="p-4 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-cuerpo" class="divide-y divide-slate-800">
+                    <!-- Dinámico -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL: Registrar Equipo -->
+    <div id="modal-equipo" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Registrar Nuevo Equipo</h3>
+            <input type="text" id="eq-modelo" placeholder="Nombre o Modelo del Equipo" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-3 text-sm text-white">
+            <input type="text" id="eq-categoria" placeholder="Categoría (Ej: Laptop, Monitor)" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-3 text-sm text-white">
+            <select id="eq-estado" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-3 text-sm text-white">
+                <option value="Libre en almacén">Libre en almacén</option>
+                <option value="Asignado a personal">Asignado a personal</option>
+            </select>
+            <input type="text" id="eq-asignado" placeholder="Asignado a (Nombre de Personal)" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-3 text-sm text-white">
+            <input type="text" id="eq-ubicacion" placeholder="Ubicación (Ej: Oficina Principal)" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-4 text-sm text-white">
+            <div class="flex justify-end gap-2">
+                <button onclick="cerrarModal('modal-equipo')" class="px-4 py-2 bg-slate-800 text-xs rounded">Cancelar</button>
+                <button onclick="guardarEquipo()" class="px-4 py-2 bg-blue-600 text-xs rounded text-white">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Agregar Categoría -->
+    <div id="modal-categoria" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4">Nueva Categoría</h3>
+            <input type="text" id="cat-nombre" placeholder="Nombre de categoría" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-4 text-sm text-white">
+            <div class="flex justify-end gap-2">
+                <button onclick="cerrarModal('modal-categoria')" class="px-4 py-2 bg-slate-800 text-xs rounded">Cancelar</button>
+                <button onclick="guardarCategoria()" class="px-4 py-2 bg-blue-600 text-xs rounded text-white">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Agregar Personal -->
+    <div id="modal-personal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4">Nuevo Personal</h3>
+            <input type="text" id="per-nombre" placeholder="Nombre completo" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-3 text-sm text-white">
+            <input type="text" id="per-cargo" placeholder="Cargo o área" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-4 text-sm text-white">
+            <div class="flex justify-end gap-2">
+                <button onclick="cerrarModal('modal-personal')" class="px-4 py-2 bg-slate-800 text-xs rounded">Cancelar</button>
+                <button onclick="guardarPersonal()" class="px-4 py-2 bg-blue-600 text-xs rounded text-white">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Agregar Modelo -->
+    <div id="modal-modelo" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4">Nuevo Modelo</h3>
+            <input type="text" id="mod-nombre" placeholder="Nombre del modelo" class="w-full bg-slate-950 border border-slate-800 p-2 rounded mb-4 text-sm text-white">
+            <div class="flex justify-end gap-2">
+                <button onclick="cerrarModal('modal-modelo')" class="px-4 py-2 bg-slate-800 text-xs rounded">Cancelar</button>
+                <button onclick="guardarModelo()" class="px-4 py-2 bg-blue-600 text-xs rounded text-white">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lógica de Conexión y JavaScript -->
+    <script>
+        // Credenciales configuradas directamente de tu proyecto:
+        const SUPABASE_URL = 'https://fjbmcwvpswhhacydicz.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_SraJ8VLa9iMMeLtiTC6krw_oOfPbbDG';
+        
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let modoPapelera = false;
+
+        async function cargarInventario() {
+            let query = _supabase.from('equipos').select('*');
+            if (!modoPapelera) {
+                query = query.eq('eliminado', false);
+            } else {
+                query = query.eq('eliminado', true);
+            }
+
+            const { data, error } = await query;
+            if (error) { console.error(error); return; }
+
+            const cuerpo = document.getElementById('tabla-cuerpo');
+            cuerpo.innerHTML = '';
+
+            let total = data.length;
+            let libres = data.filter(e => e.estado === 'Libre en almacén' && !e.eliminado).length;
+            let asignados = data.filter(e => e.estado === 'Asignado a personal' && !e.eliminado).length;
+
+            if (!modoPapelera) {
+                document.getElementById('total-registrados').innerText = total;
+                document.getElementById('total-libres').innerText = libres;
+                document.getElementById('total-asignados').innerText = asignados;
+            }
+
+            if(data.length === 0) {
+                cuerpo.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500">No hay registros disponibles.</td></tr>`;
+                return;
+            }
+
+            data.forEach((eq, index) => {
+                cuerpo.innerHTML += `
+                    <tr class="hover:bg-slate-900/50">
+                        <td class="p-4 text-slate-400">${index + 1}</td>
+                        <td class="p-4 font-medium">${eq.modelo_equipo} <span class="text-xs text-slate-500 block">${eq.categoria}</span></td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-xs ${eq.estado === 'Libre en almacén' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">${eq.estado}</span></td>
+                        <td class="p-4 text-slate-300">${eq.asignado_a || 'Ninguno'}</td>
+                        <td class="p-4 text-slate-400">${eq.ubicacion}</td>
+                        <td class="p-4 text-right">
+                            ${modoPapelera ? 
+                                `<button onclick="restaurarEquipo(${eq.id})" class="text-xs bg-emerald-700 hover:bg-emerald-600 px-2.5 py-1 rounded text-white font-medium">Restaurar</button>` : 
+                                `<button onclick="enviarAPapelera(${eq.id})" class="text-xs bg-red-950 hover:bg-red-900 text-red-300 px-2.5 py-1 rounded border border-red-800 font-medium">Eliminar</button>`
+                            }
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function guardarEquipo() {
+            const modelo_equipo = document.getElementById('eq-modelo').value;
+            const categoria = document.getElementById('eq-categoria').value;
+            const estado = document.getElementById('eq-estado').value;
+            const asignado_a = document.getElementById('eq-asignado').value;
+            const ubicacion = document.getElementById('eq-ubicacion').value;
+
+            if(!modelo_equipo) { alert('Ingresa el modelo del equipo'); return; }
+
+            const { error } = await _supabase.from('equipos').insert([{ modelo_equipo, categoria, estado, asignado_a, ubicacion }]);
+            if (error) { alert('Error al guardar el equipo'); return; }
+
+            cerrarModal('modal-equipo');
+            cargarInventario();
+        }
+
+        async function guardarCategoria() {
+            const nombre = document.getElementById('cat-nombre').value;
+            if(!nombre) return;
+            await _supabase.from('categorias').insert([{ nombre }]);
+            cerrarModal('modal-categoria');
+            alert('Categoría guardada con éxito');
+        }
+
+        async function guardarPersonal() {
+            const nombre = document.getElementById('per-nombre').value;
+            const cargo = document.getElementById('per-cargo').value;
+            if(!nombre) return;
+            await _supabase.from('personal').insert([{ nombre, cargo }]);
+            cerrarModal('modal-personal');
+            alert('Personal registrado con éxito');
+        }
+
+        async function guardarModelo() {
+            const nombre = document.getElementById('mod-nombre').value;
+            if(!nombre) return;
+            await _supabase.from('modelos').insert([{ nombre }]);
+            cerrarModal('modal-modelo');
+            alert('Modelo registrado con éxito');
+        }
+
+        async function enviarAPapelera(id) {
+            await _supabase.from('equipos').update({ eliminado: true }).eq('id', id);
+            cargarInventario();
+        }
+
+        async function restaurarEquipo(id) {
+            await _supabase.from('equipos').update({ eliminado: false }).eq('id', id);
+            cargarInventario();
+        }
+
+        function verListas() {
+            modoPapelera = !modoPapelera;
+            const btn = document.getElementById('btn-listas');
+            if(modoPapelera) {
+                btn.classList.add('bg-red-950', 'border-red-600');
+                btn.innerText = '📦 Volver al Inventario';
+            } else {
+                btn.classList.remove('bg-red-950', 'border-red-600');
+                btn.innerText = '🗑️ Listas (Papelera)';
+            }
+            cargarInventario();
+        }
+
+        function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function cerrarModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // Inicializar al cargar la página
+        cargarInventario();
+    </script>
+</body>
+</html>
